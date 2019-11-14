@@ -1,0 +1,12 @@
+SELECT	Products.ID,
+	Products.[Store UPC] AS [SKU],
+	Products.Description,
+	Products.ReOrderLevel AS [MIN],
+	Products.Maximum AS [MAX],
+	Products.Min2 AS [MIN2],
+	Products.Max2 AS [MAX2]
+FROM	Products
+WHERE	Products.ReOrderLevel > 0
+	OR Products.Maximum > 0
+	OR Products.Min2 > 0
+	OR Products.Max2 > 0

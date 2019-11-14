@@ -1,0 +1,33 @@
+SELECT Locations.Name, 
+	(SELECT COUNT(DISTINCT(SalesItems.ID)) 
+
+		FROM Sales, SalesItems, Products, Vendors, VendorProducts 
+
+		WHERE 
+		Sales.ID = SalesItems.SalesID 
+		AND SalesItems.OrderItemID IS NOT NULL 
+		AND Sales.Hide <> 1 AND Sales.Quote <> 1 
+		AND SalesItems.Hide <> 1 
+		AND Sales.DateCreated BETWEEN '20180801' AND '20190731' 
+		AND SalesItems.ProductID = Products.ID 
+		AND Products.ID = VendorProducts.ProductID 
+		AND VendorProducts.VendorID = Vendors.ID 
+		AND Vendors.Name LIKE 'Santa%' AND SalesItems.Price > 1500) AS [Bike Special Orders], 
+
+
+	(SELECT COUNT(DISTINCT(SalesItems.ID)) 
+		
+		FROM Sales, SalesItems, Products, Vendors, VendorProducts 
+
+		WHERE 
+		Sales.ID = SalesItems.SalesID 
+		AND Sales.Hide <> 1 
+		AND Sales.Quote <> 1 
+		AND SalesItems.Hide <> 1 
+		AND Sales.DateCreated BETWEEN '20180801' AND '20190731' 
+		AND SalesItems.ProductID = Products.ID 
+		AND Products.ID = VendorProducts.ProductID 
+		AND VendorProducts.VendorID = Vendors.ID 
+		AND Vendors.Name LIKE 'Santa%' AND SalesItems.Price > 1500) AS [Total Bikes Sold] 
+
+FROM Locations WHERE Locations.ActiveStore = 1
