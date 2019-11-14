@@ -1,0 +1,240 @@
+WITH LabCats AS
+(
+	SELECT Categories.* 
+	FROM Categories 
+	WHERE (Categories.Topic Like '%Labor%' Or Categories.Topic Like '%Labour%')
+		AND Categories.Hide  = 0
+		
+	UNION ALL
+        
+	SELECT Categories.* 
+	FROM Categories 
+		INNER JOIN LabCats On LabCats.ID = Categories.ParentID
+	WHERE Categories.Hide = 0
+),
+ServCats AS
+(
+	SELECT Categories.* 
+	FROM Categories 
+	WHERE Categories.Topic Like '%Service%'
+		AND Categories.TopParentID IS NULL
+		AND Categories.Hide  = 0
+		
+	UNION ALL
+        
+	SELECT Categories.* 
+	FROM Categories 
+		INNER JOIN ServCats On ServCats.ID = Categories.ParentID
+	WHERE Categories.Hide = 0
+),
+BikeCat AS
+(
+	SELECT Categories.*
+	FROM Categories 
+	WHERE (Categories.Topic Like '%Bike%' OR Categories.Topic Like '%Bicycle%')
+		AND Categories.TopParentID IS NULL
+		AND Categories.Hide = 0
+		AND Categories.Topic Not Like '%Part%'
+		AND Categories.Topic Not Like '%Comfort%'
+	
+	UNION ALL
+	
+	SELECT Categories.*
+	FROM Categories
+		INNER JOIN BikeCat On BikeCat.ID = Categories.ParentID
+	WHERE Categories.Hide = 0
+		AND Categories.Topic Not Like '%Frame%'
+),
+Frame AS
+(
+	SELECT Categories.*
+	FROM Categories 
+	WHERE Categories.Hide = 0
+		AND Categories.Topic Like '%Frame%'
+		AND Categories.TopParentID IN (
+			SELECT TopParentID
+			FROM BikeCat)
+),
+Excl AS
+(
+	SELECT Categories.*
+	FROM Categories 
+	WHERE (Topic Like '%Services%'
+		OR Topic Like 'Rental'
+		OR ID IN (
+			SELECT ID
+			FROM BikeCat)
+		OR ID IN (
+			SELECT ID
+			FROM LabCats))
+		AND Categories.TopParentID IS NULL
+		AND Categories.Hide = 0
+	
+	UNION ALL
+	
+	SELECT Categories.*
+	FROM Categories
+		INNER JOIN Excl On Excl.ID = Categories.ParentID
+	WHERE Categories.Hide = 0
+		AND Categories.ID NOT IN (
+			SELECT ID
+			FROM Frame)
+),
+AddCats AS
+(
+	SELECT Categories.* 
+	FROM Categories
+	WHERE Hide = 0
+		AND ID NOT IN (
+			SELECT ID
+			FROM Excl)
+),
+LabProds AS 
+(
+	SELECT Products.* 
+	FROM Products 
+	WHERE TopicID IN (
+		SELECT ID 
+		FROM LabCats)
+),
+ServProds AS 
+(
+	SELECT Products.* 
+	FROM Products 
+	WHERE TopicID IN (
+		SELECT ID 
+		FROM ServCats)
+),
+AddProds AS
+(
+	SELECT Products.* 
+	FROM Products 
+	WHERE TopicID IN (
+		SELECT ID 
+		FROM AddCats)
+)
+
+SELECT
+	  [ID] = '1'
+
+	, [Employee] = UPPER(Users.FirstName + ' ' + Users.LastName)
+
+	, [TOTAL Commission] = (0.1*ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			INNER JOIN WorkOrderDetails ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		WHERE Sales.Hide = 0
+			AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+			AND WorkOrderDetails.Hide = 0 
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+			AND WorkOrderDetails.DateCompleted Is Not NULL
+			AND SalesItems.ProductID IN (
+				SELECT ID 
+				FROM LabProds)
+			AND WorkOrderDetails.ServiceID = Users.ID), 0)) +
+
+
+	0.04*ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+			AND Sales.Hide = 0
+			AND Sales.Quote = 0
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+            AND SalesItems.ProductID IN (
+				SELECT ID 
+				FROM LabProds)
+            AND Sales.CommissionID = Users.ID), 0) +
+
+
+	0.02*ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+			AND Sales.Hide = 0
+			AND Sales.Quote = 0
+			AND SalesItems.Hide = 0
+            AND SalesItems.ProductID NOT IN (
+				SELECT ID 
+				FROM LabProds)
+            AND Sales.CommissionID = Users.ID), 0)
+
+
+
+	, [Labor Completed Commission] = 0.1*ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			INNER JOIN WorkOrderDetails ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		WHERE Sales.Hide = 0
+			AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+			AND WorkOrderDetails.Hide = 0 
+			AND SalesItems.Hide = 0
+			AND SalesItems.ProductID IN (
+				SELECT ID 
+				FROM LabProds)
+			AND WorkOrderDetails.ServiceID = Users.ID), 0)
+
+
+	, [Labor Sold Commission] = 0.04*ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+			AND Sales.Hide = 0
+			AND Sales.Quote = 0
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+            AND SalesItems.ProductID IN (
+				SELECT ID 
+				FROM LabProds)
+            AND Sales.CommissionID = Users.ID), 0)
+
+
+	, [Non-Labor Sold Commission] = 0.02*ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+			AND Sales.Hide = 0
+			AND Sales.Quote = 0
+			AND SalesItems.Hide = 0
+            AND SalesItems.ProductID NOT IN (
+				SELECT ID 
+				FROM LabProds)
+            AND Sales.CommissionID = Users.ID), 0)
+
+
+
+FROM Users
+WHERE ID IN (
+	SELECT WorkOrderDetails.ServiceID 
+	FROM Sales
+		INNER JOIN WorkOrderDetails On Sales.ID = WorkOrderDetails.SalesID
+	WHERE Sales.Hide = 0
+		AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+		AND WorkOrderDetails.Hide = 0 
+		AND WorkOrderDetails.DateCompleted Is Not NULL)
+	OR ID IN (
+		SELECT WorkOrderDetails.EstimateID 
+		FROM Sales
+			INNER JOIN WorkOrderDetails On Sales.ID = WorkOrderDetails.SalesID
+		WHERE Sales.Hide = 0
+			AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+			AND WorkOrderDetails.Hide = 0 
+			AND WorkOrderDetails.DateCompleted Is Not NULL)
+	OR ID IN (
+		SELECT SerialNos.BuilderID 
+		FROM SerialNos 
+		WHERE SerialNos.Hide = 0 
+			AND SerialNos.DateBuilt BETWEEN <<StartDate>> AND <<EndDate>>)
+
+
+ORDER BY
+	  [ID]
+	, [Employee]

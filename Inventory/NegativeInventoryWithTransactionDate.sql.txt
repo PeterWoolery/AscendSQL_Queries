@@ -1,0 +1,57 @@
+SELECT Products.ID
+	, [Category] = Categories.Topic
+	, [SKU] =  Products.[Store UPC]
+	, Products.Description
+	, [Cost] = CASE 
+		WHEN (Products.AvgCost IS NULL 
+		OR Products.AvgCost = 0) 
+		THEN EstCost/Division 
+		ELSE AvgCost 
+		END 
+	, Products.Quantity
+	, [Committed] = (SELECT SUM(SalesItems.Quantity)
+		FROM Sales
+			JOIN SalesItems ON Sales.ID = SalesItems.SalesID
+		WHERE Products.ID = SalesItems.ProductID
+		AND SalesItems.Hide = 0
+		AND Sales.Hide = 0
+		AND Sales.Quote = 0
+		AND Sales.FinishDate IS NULL)
+	, [BO Not Ordered] = (SELECT SUM(SalesItems.Quantity) 
+		FROM Sales
+			JOIN SalesItems ON Sales.ID = SalesItems.SalesID
+		WHERE SalesItems.Hide = 0 
+		AND SalesItems.BackOrder <> 0 
+		AND Sales.Hide = 0 
+		AND SalesItems.OrderItemID IS NULL 
+		AND SalesItems.ProductID = Products.ID)
+	, [BO On Order] = (SELECT SUM(salesItems.Quantity) 
+		FROM Sales
+			JOIN SalesItems ON Sales.ID = SalesItems.SalesID
+			JOIN OrderItems ON SalesItems.OrderItemID = OrderItems.ID
+			JOIN Orders ON OrderItems.OrderID = Orders.ID 
+		WHERE SalesItems.Hide = 0 
+		AND SalesItems.BackOrder <> 0 
+		AND Sales.Hide = 0 
+		AND SalesItems.ProductID = Products.ID 
+		AND OrderItems.Hide = 0 
+		AND OrderItems.DateReceived IS NULL 
+		AND Orders.Hide = 0)
+	, [Total Cost] = CASE 
+		WHEN (Products.AvgCost IS NULL OR Products.AvgCost = 0) 
+		THEN Products.Quantity * ROUND(Products.EstCost,2) / Products.Division 
+		ELSE Products.Quantity * ROUND(Products.AvgCost,2) 
+		END 
+	, [Last Transaction] = 	(SELECT MAX(Sales.DateCreated)
+		FROM Sales
+			JOIN SalesItems ON Sales.ID = SalesItems.SalesID
+		WHERE Sales.Hide = 0 
+		AND Sales.Quote = 0
+		AND SalesItems.Hide = 0 
+		AND SalesItems.ProductID = Products.ID)
+FROM Products
+	LEFT JOIN Categories ON Products.TopicID = Categories.ID
+WHERE Products.Hide = 0 
+AND Products.Quantity < 0 
+AND Products.NonInventory = 0 
+ORDER BY Products.[Store UPC]

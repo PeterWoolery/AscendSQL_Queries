@@ -1,0 +1,38 @@
+SELECT Products.ID AS [Product],
+
+Products.Description AS [Description],
+
+SUM(Products.Quantity)       AS [QOH],
+
+(SELECT SUM(SalesItems.Quantity)
+       FROM Sales, SalesItems
+       Where Sales.Hide = 0
+       AND Sales.ID = SalesItems.SalesID
+       AND SalesItems.Hide = 0
+       AND SalesItems.ProductID = Products.ID)
+       AS [Sales Units],
+
+
+
+(SELECT SUM(OrderItems.Quantity)
+       FROM OrderItems, VendorProducts, Products
+       Where OrderItems.Hide = 0
+       AND OrderItems.VendorProductID = VendorProducts.ID
+       AND VendorProducts.ProductID = Products.ID)
+       AS [Received QTY],
+
+
+
+((SELECT SUM(InventoryAdjustment.NewQTY)
+       FROM InventoryAdjustment
+       Where InventoryAdjustment.ProductID = Products.ID)
+       -
+(SELECT SUM(InventoryAdjustment.OldQTY)
+       FROM InventoryAdjustment
+       Where InventoryAdjustment.ProductID = Products.ID))
+       AS [Inventory Adjustment]
+
+FROM Products
+INNER JOIN SalesItems on SalesItems.ProductID = Products.ID
+GROUP BY Products.ID, Products.Description
+ORDER BY Products.Description;

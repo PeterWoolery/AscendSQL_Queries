@@ -1,0 +1,29 @@
+SELECT Products.ID,
+Products.[Store UPC] AS SKU,
+Products.UPC,
+Products.Description,
+Products.Keyword,
+Products.Price AS MSRP,
+[Current Cost] = CASE
+WHEN (Products.AvgCost IS NULL OR Products.AvgCost = 0) 
+THEN EstCost/Division
+ELSE AvgCost 
+END, 
+SUM(SalesItems.Quantity) AS NumberSold,
+SUM(SalesItems.Quantity * SalesItems.COGS) AS [Total COGS]
+FROM Sales, SalesItems, Products
+WHERE Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+AND Sales.Hide = 0
+AND Sales.ID = SalesItems.SalesID
+AND SalesItems.Hide = 0
+AND SalesItems.ProductID = Products.ID
+AND Products.NonInventory = 1
+GROUP BY Products.ID,
+Products.[Store UPC],
+Products.UPC,
+Products.Description,
+Products.Keyword,
+Products.Price,
+Products.AvgCost,
+Products.EstCost,
+Products.Division

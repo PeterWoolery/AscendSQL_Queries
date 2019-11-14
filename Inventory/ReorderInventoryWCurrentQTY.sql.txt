@@ -1,0 +1,34 @@
+SELECT Products.ID,
+ 	Categories.Topic AS 'Category',
+ 	Products.[Store UPC] AS 'In-store SKU',
+ 	Products.Description,
+ 	Products.Quantity AS 'QOH',
+	Products.ReOrderLevel,
+	Products.Maximum,
+	Products.Min2,
+	Products.Max2,
+ 	(SELECT SUM(SalesItems.Quantity)
+ 		FROM SalesItems, Sales
+ 		WHERE SalesItems.ProductID = Products.ID
+ 		AND SalesItems.Hide = 0
+ 		AND SalesItems.SalesID = Sales.ID
+ 		AND Sales.Hide = 0
+ 		AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>) AS 'Units Sold',
+	(SELECT SUM(OrderItems.Quantity)
+ 		FROM OrderItems, Orders, VendorProducts
+ 		WHERE OrderItems.Hide = 0
+ 		AND OrderItems.DateReceived BETWEEN <<StartDate>> AND <<EndDate>>
+ 		AND OrderItems.OrderID = Orders.ID
+ 		AND Orders.Hide = 0
+ 		AND OrderItems.VendorProductID = VendorProducts.ID
+ 		AND VendorProducts.ProductID = Products.ID) AS 'Received'
+FROM Categories RIGHT OUTER JOIN Products ON Products.TopicID = Categories.ID
+WHERE (SELECT SUM(SalesItems.Quantity)
+ 		FROM SalesItems, Sales
+ 		WHERE SalesItems.ProductID = Products.ID
+ 		AND SalesItems.Hide = 0
+ 		AND SalesItems.SalesID = Sales.ID
+ 		AND Sales.Hide = 0
+ 		AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>) <> 0
+ORDER BY Categories.Topic,
+ Products.Description

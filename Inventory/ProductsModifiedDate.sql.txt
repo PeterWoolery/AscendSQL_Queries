@@ -1,0 +1,10 @@
+SELECT Products.ID,
+Products.[Store UPC] AS SKU,
+Products.Description,
+Products.Hide,
+Products.DateModified,
+Users.FirstName,
+Users.LastName
+FROM Products, Users
+WHERE Products.DateModified BETWEEN <<StartDate>> AND <<EndDate>>
+AND Products.ModifierID = Users.ID
