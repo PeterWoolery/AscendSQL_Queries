@@ -1,0 +1,30 @@
+With Pre As ( Select MIN (sales.FinishDate) as "# of Purchases Since First Bike "
+				FROM sales
+				Inner Join salesitems on sales.id = salesitems.SalesID
+				Inner Join Products on salesitems.ProductID = products.ID
+		   WHERE PRoducts.TopicID IN (SELECT Categories.ID
+				FROM Categories
+					WHERE Categories.Topic='Bikes'
+		UNION
+				SELECT 
+					C1.ID
+				FROM Categories C1, Categories C2
+					WHERE C2.Topic='Bikes'
+					AND C1.TopParentID=C2.ID )
+				)
+
+
+
+select 
+     Customers.FirstName + ' ' + Customers.LastName as Customer,
+		Count (Sales.ID) as "# of Purchases Since First Bike "
+	FROM Customers
+		Inner Join Sales on Customers.Id = sales.CustomerID
+		Inner Join SalesItems on Sales.ID = SalesItems.SalesID
+		Inner Join Products on salesitems.ProductID = Products.ID
+		Inner Join Categories on Products.TopicID = Categories.ID
+	WHERE Sales.Hide = 0 
+        AND Customers.Hide = 0
+	AND Sales.FinishDate > (select Pre.[# of Purchases Since First Bike ] FROM Pre)  
+	Group By Customers.FirstName, Customers.LastName
+	Order by Customers.LastName

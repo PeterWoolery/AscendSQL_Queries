@@ -1,0 +1,14 @@
+SELECT Users.LastName,
+	Users.FirstName,
+	CONVERT(VARCHAR,StartTime,102) AS 'Date Worked',
+	ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2) 
+FROM Users, TimeClock
+WHERE TimeClock.Hide = 0
+AND TimeClock.StartTime BETWEEN <<StartDate>> AND <<EndDate>>
+AND Users.ID = TimeClock.UserID
+GROUP BY Users.LastName, 
+	Users.FirstName, 
+	CONVERT(VARCHAR,StartTime,102)
+ORDER BY Users.LastName, 
+	Users.FirstName, 
+	CONVERT(VARCHAR,StartTime,102)

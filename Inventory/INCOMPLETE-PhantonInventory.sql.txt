@@ -1,0 +1,7 @@
+SELECT TOP 100 Products.ID, SalesItems.Description as Description ,Products.Quantity as Quantity , (InventoryAdjustment.NewQty - InventoryAdjustment.OldQty) as [Inv Change], SalesItems.Quantity as [SalesItems Quantity] FROM ((Products 
+
+INNER JOIN InventoryAdjustment ON Products.ID = InventoryAdjustment.ProductID) INNER JOIN SalesItems on Products.ID = SalesItems.ProductID)
+
+WHERE Products.Hide = 0 AND Products.Quantity > 0 AND (InventoryAdjustment.NewQty - InventoryAdjustment.OldQty) < 0 AND SalesItems.Quantity = 0
+
+ORDER BY SalesItems.Description;

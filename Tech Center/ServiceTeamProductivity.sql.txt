@@ -1,0 +1,250 @@
+WITH LabCats
+AS
+(SELECT
+		Categories.*
+	FROM Categories
+	WHERE (Categories.Topic LIKE '%Labor%'
+	OR Categories.Topic LIKE '%Labour%')
+	AND Categories.TopParentID IS NULL
+	AND Categories.Hide = 0
+
+	UNION ALL
+
+	SELECT
+		Categories.*
+	FROM Categories
+	INNER JOIN LabCats
+		ON LabCats.ID = Categories.ParentID
+	WHERE Categories.Hide = 0)
+
+SELECT
+	[Technician] = Users.FirstName + ' ' + Users.LastName
+   ,[Total Labor Dollars] = ISNULL((SELECT
+			SUM(SalesItems.Quantity * SalesItems.Price)
+		FROM Sales
+		INNER JOIN WorkOrderDetails
+			ON Sales.ID = WorkOrderDetails.SalesID
+		INNER JOIN SalesItems
+			ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		INNER JOIN Products
+			ON SalesItems.ProductID = Products.ID
+		WHERE ISNULL(Sales.Hide, 0) = 0
+		AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+		AND ISNULL(SalesItems.Hide, 0) = 0
+		AND Products.TopicID IN (SELECT
+				LabCats.ID
+			FROM LabCats)
+		AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>
+		AND WorkOrderDetails.ServiceID = Users.ID)
+	, 0)
+   ,[Percentage of Total] = ISNULL(
+	CASE
+		WHEN ISNULL((SELECT
+					SUM(SalesItems.Quantity * SalesItems.Price)
+				FROM Sales
+				INNER JOIN WorkOrderDetails
+					ON Sales.ID = WorkOrderDetails.SalesID
+				INNER JOIN SalesItems
+					ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+				INNER JOIN Products
+					ON SalesItems.ProductID = Products.ID
+				WHERE ISNULL(Sales.Hide, 0) = 0
+				AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+				AND ISNULL(SalesItems.Hide, 0) = 0
+				AND Products.TopicID IN (SELECT
+						LabCats.ID
+					FROM LabCats)
+				AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>)
+			, 0) = 0 THEN 0
+		ELSE (SELECT
+					SUM(SalesItems.Quantity * SalesItems.Price)
+				FROM Sales
+				INNER JOIN WorkOrderDetails
+					ON Sales.ID = WorkOrderDetails.SalesID
+				INNER JOIN SalesItems
+					ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+				INNER JOIN Products
+					ON SalesItems.ProductID = Products.ID
+				WHERE ISNULL(Sales.Hide, 0) = 0
+				AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+				AND ISNULL(SalesItems.Hide, 0) = 0
+				AND Products.TopicID IN (SELECT
+						LabCats.ID
+					FROM LabCats)
+				AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>
+				AND WorkOrderDetails.ServiceID = Users.ID)
+			/ (SELECT
+					SUM(SalesItems.Quantity * SalesItems.Price)
+				FROM Sales
+				INNER JOIN WorkOrderDetails
+					ON Sales.ID = WorkOrderDetails.SalesID
+				INNER JOIN SalesItems
+					ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+				INNER JOIN Products
+					ON SalesItems.ProductID = Products.ID
+				WHERE ISNULL(Sales.Hide, 0) = 0
+				AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+				AND ISNULL(SalesItems.Hide, 0) = 0
+				AND Products.TopicID IN (SELECT
+						LabCats.ID
+					FROM LabCats)
+				AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>)
+	END, 0)
+
+	,[Total Hrs. Worked]=ISNULL(( SELECT
+		ROUND(SUM(DATEDIFF(SS, TimeClock.StartTime, TimeClock.EndTime) / 3600.00), 2)
+	FROM TimeClock
+	WHERE TimeClock.StartTime BETWEEN <<StartDate>> AND <<EndDate>>
+	AND TimeClock.Hide = 0
+	AND TimeClock.UserID = Users.ID),0)
+
+	,[Labor $/Hrs. Worked]= (SELECT
+	CASE WHEN 
+		( SELECT
+		ROUND(SUM(DATEDIFF(SS, TimeClock.StartTime, TimeClock.EndTime) / 3600.00), 2)
+	FROM TimeClock
+	WHERE TimeClock.StartTime BETWEEN <<StartDate>> AND <<EndDate>>
+	AND TimeClock.Hide = 0
+	AND TimeClock.UserID = Users.ID) = 0
+	THEN 0
+	WHEN 
+	(SELECT
+			SUM(SalesItems.Quantity * SalesItems.Price)
+		FROM Sales
+		INNER JOIN WorkOrderDetails
+			ON Sales.ID = WorkOrderDetails.SalesID
+		INNER JOIN SalesItems
+			ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		INNER JOIN Products
+			ON SalesItems.ProductID = Products.ID
+		WHERE ISNULL(Sales.Hide, 0) = 0
+		AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+		AND ISNULL(SalesItems.Hide, 0) = 0
+		AND Products.TopicID IN (SELECT
+				LabCats.ID
+			FROM LabCats)
+		AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>
+		AND WorkOrderDetails.ServiceID = Users.ID) = 0
+	THEN 0
+	ELSE 
+	(SELECT
+			SUM(SalesItems.Quantity * SalesItems.Price)
+		FROM Sales
+		INNER JOIN WorkOrderDetails
+			ON Sales.ID = WorkOrderDetails.SalesID
+		INNER JOIN SalesItems
+			ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		INNER JOIN Products
+			ON SalesItems.ProductID = Products.ID
+		WHERE ISNULL(Sales.Hide, 0) = 0
+		AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+		AND ISNULL(SalesItems.Hide, 0) = 0
+		AND Products.TopicID IN (SELECT
+				LabCats.ID
+			FROM LabCats)
+		AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>
+		AND WorkOrderDetails.ServiceID = Users.ID) /
+	( SELECT
+		ROUND(SUM(DATEDIFF(SS, TimeClock.StartTime, TimeClock.EndTime) / 3600.00), 2)
+	FROM TimeClock
+	WHERE TimeClock.StartTime BETWEEN <<StartDate>> AND <<EndDate>>
+	AND TimeClock.Hide = 0
+	AND TimeClock.UserID = Users.ID)
+	END)
+
+FROM Users
+WHERE Users.ID IN (SELECT DISTINCT
+		WorkOrderDetails.ServiceID
+	FROM Sales
+	INNER JOIN WorkOrderDetails
+		ON Sales.ID = WorkOrderDetails.SalesID
+	WHERE ISNULL(Sales.Hide, 0) = 0
+	AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+	AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>)
+
+UNION
+
+SELECT
+	[Technician] = '* No Tech Assigned *'
+   ,[Total Labor Dollars] = ISNULL((SELECT
+			SUM(SalesItems.Quantity * SalesItems.Price)
+		FROM Sales
+		INNER JOIN WorkOrderDetails
+			ON Sales.ID = WorkOrderDetails.SalesID
+		INNER JOIN SalesItems
+			ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		INNER JOIN Products
+			ON SalesItems.ProductID = Products.ID
+		WHERE ISNULL(Sales.Hide, 0) = 0
+		AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+		AND ISNULL(SalesItems.Hide, 0) = 0
+		AND WorkOrderDetails.ServiceID IS NULL
+		AND Products.TopicID IN (SELECT
+				LabCats.ID
+			FROM LabCats)
+		AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>)
+	, 0)
+   ,[Percentage of Total] = ISNULL(
+	CASE
+		WHEN ISNULL((SELECT
+					SUM(SalesItems.Quantity * SalesItems.Price)
+				FROM Sales
+				INNER JOIN WorkOrderDetails
+					ON Sales.ID = WorkOrderDetails.SalesID
+				INNER JOIN SalesItems
+					ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+				INNER JOIN Products
+					ON SalesItems.ProductID = Products.ID
+				WHERE ISNULL(Sales.Hide, 0) = 0
+				AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+				AND ISNULL(SalesItems.Hide, 0) = 0
+				AND Products.TopicID IN (SELECT
+						LabCats.ID
+					FROM LabCats)
+				AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>)
+			, 0) = 0 THEN 0
+		ELSE (SELECT
+					SUM(SalesItems.Quantity * SalesItems.Price)
+				FROM Sales
+				INNER JOIN WorkOrderDetails
+					ON Sales.ID = WorkOrderDetails.SalesID
+				INNER JOIN SalesItems
+					ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+				INNER JOIN Products
+					ON SalesItems.ProductID = Products.ID
+				WHERE ISNULL(Sales.Hide, 0) = 0
+				AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+				AND ISNULL(SalesItems.Hide, 0) = 0
+				AND WorkOrderDetails.ServiceID IS NULL
+				AND Products.TopicID IN (SELECT
+						LabCats.ID
+					FROM LabCats)
+				AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>)
+			/ (SELECT
+					SUM(SalesItems.Quantity * SalesItems.Price)
+				FROM Sales
+				INNER JOIN WorkOrderDetails
+					ON Sales.ID = WorkOrderDetails.SalesID
+				INNER JOIN SalesItems
+					ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+				INNER JOIN Products
+					ON SalesItems.ProductID = Products.ID
+				WHERE ISNULL(Sales.Hide, 0) = 0
+				AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+				AND ISNULL(SalesItems.Hide, 0) = 0
+				AND Products.TopicID IN (SELECT
+						LabCats.ID
+					FROM LabCats)
+				AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>)
+	END, 0)
+	,NULL
+	,NULL
+
+FROM Sales
+INNER JOIN WorkOrderDetails
+	ON Sales.ID = WorkOrderDetails.SalesID
+WHERE ISNULL(Sales.Hide, 0) = 0
+AND ISNULL(WorkOrderDetails.Hide, 0) = 0
+AND WorkOrderDetails.ServiceID IS NULL
+AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>
+ORDER BY [Technician]

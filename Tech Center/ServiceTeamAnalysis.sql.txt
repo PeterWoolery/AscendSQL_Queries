@@ -1,0 +1,373 @@
+WITH LabCats AS
+(
+	SELECT Categories.* 
+	FROM Categories 
+	WHERE (Categories.Topic Like '%Labor%' Or Categories.Topic Like '%Labour%')
+		AND Categories.TopParentID IS NULL
+		AND Categories.Hide  = 0
+		
+	UNION ALL
+        
+	SELECT Categories.* 
+	FROM Categories 
+		INNER JOIN LabCats On LabCats.ID = Categories.ParentID
+	WHERE Categories.Hide = 0
+),
+ServCats AS
+(
+	SELECT Categories.* 
+	FROM Categories 
+	WHERE Categories.Topic Like '%Service%'
+		AND Categories.TopParentID IS NULL
+		AND Categories.Hide  = 0
+		
+	UNION ALL
+        
+	SELECT Categories.* 
+	FROM Categories 
+		INNER JOIN ServCats On ServCats.ID = Categories.ParentID
+	WHERE Categories.Hide = 0
+),
+BikeCat AS
+(
+	SELECT Categories.*
+	FROM Categories 
+	WHERE (Categories.Topic Like '%Bike%' OR Categories.Topic Like '%Bicycle%')
+		AND Categories.TopParentID IS NULL
+		AND Categories.Hide = 0
+		AND Categories.Topic Not Like '%Part%'
+		AND Categories.Topic Not Like '%Comfort%'
+	
+	UNION ALL
+	
+	SELECT Categories.*
+	FROM Categories
+		INNER JOIN BikeCat On BikeCat.ID = Categories.ParentID
+	WHERE Categories.Hide = 0
+		AND Categories.Topic Not Like '%Frame%'
+),
+Frame AS
+(
+	SELECT Categories.*
+	FROM Categories 
+	WHERE Categories.Hide = 0
+		AND Categories.Topic Like '%Frame%'
+		AND Categories.TopParentID IN (
+			SELECT TopParentID
+			FROM BikeCat)
+),
+Excl AS
+(
+	SELECT Categories.*
+	FROM Categories 
+	WHERE (Topic Like '%Services%'
+		OR Topic Like 'Rental'
+		OR ID IN (
+			SELECT ID
+			FROM BikeCat)
+		OR ID IN (
+			SELECT ID
+			FROM LabCats))
+		AND Categories.TopParentID IS NULL
+		AND Categories.Hide = 0
+	
+	UNION ALL
+	
+	SELECT Categories.*
+	FROM Categories
+		INNER JOIN Excl On Excl.ID = Categories.ParentID
+	WHERE Categories.Hide = 0
+		AND Categories.ID NOT IN (
+			SELECT ID
+			FROM Frame)
+),
+AddCats AS
+(
+	SELECT Categories.* 
+	FROM Categories
+	WHERE Hide = 0
+		AND ID NOT IN (
+			SELECT ID
+			FROM Excl)
+),
+LabProds AS 
+(
+	SELECT Products.* 
+	FROM Products 
+	WHERE TopicID IN (
+		SELECT ID 
+		FROM LabCats)
+),
+ServProds AS 
+(
+	SELECT Products.* 
+	FROM Products 
+	WHERE TopicID IN (
+		SELECT ID 
+		FROM ServCats)
+),
+AddProds AS
+(
+	SELECT Products.* 
+	FROM Products 
+	WHERE TopicID IN (
+		SELECT ID 
+		FROM AddCats)
+)
+
+SELECT
+	  [ID] = '1'
+
+	, [Employee] = UPPER(Users.FirstName + ' ' + Users.LastName)
+
+	, [Date] = CONVERT(VARCHAR(10),cast(GETDATE()-1 as DATE),112)
+
+	, [Location] = 'PA'
+
+	, [Tech WO Detail Complete] = ISNULL((
+		SELECT COUNT(DISTINCT WorkOrderDetails.ID) 
+		FROM Sales
+			INNER JOIN WorkOrderDetails ON Sales.ID = WorkOrderDetails.SalesID
+		WHERE Sales.Hide = 0
+			AND WorkOrderDetails.DateCompleted BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND WorkOrderDetails.Hide = 0
+			AND WorkOrderDetails.DateCompleted Is Not NULL
+			AND WorkOrderDetails.ServiceID = Users.ID), 0)
+
+	, [Tech Labor $ Completed] = ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			INNER JOIN WorkOrderDetails ON WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		WHERE Sales.Hide = 0
+			AND WorkOrderDetails.DateCompleted BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND WorkOrderDetails.Hide = 0 
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+			AND WorkOrderDetails.DateCompleted Is Not NULL
+			AND SalesItems.ProductID IN (
+				SELECT ID 
+				FROM LabProds)
+			AND WorkOrderDetails.ServiceID = Users.ID), 0)
+
+	, [Bike Builds] = ISNULL((
+		SELECT Count(DISTINCT SerialNos.ID) 
+		FROM SerialNos 
+		WHERE SerialNos.Hide = 0 
+			AND SerialNos.DateBuilt BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date) 
+			AND SerialNos.BuilderID = Users.ID), 0)
+
+	, [Total WO Details Written] = ISNULL((
+		SELECT COUNT(DISTINCT WorkOrderDetails.ID)
+		FROM Sales 
+			INNER JOIN WorkOrderDetails On Sales.ID = WorkOrderDetails.SalesID
+		WHERE Sales.Hide = 0
+			AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND WorkOrderDetails.Hide = 0
+            AND WorkOrderDetails.DateCompleted Is Not NULL
+            AND WorkOrderDetails.EstimateID = Users.ID), 0)
+
+	, [WO Details Labor Written] = ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			INNER JOIN WorkOrderDetails On WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		WHERE WorkOrderDetails.Hide = 0
+			AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND Sales.Hide = 0
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+            AND WorkOrderDetails.DateCompleted Is Not NULL
+            AND SalesItems.ProductID IN (
+				SELECT ID 
+				FROM LabProds)
+            AND WorkOrderDetails.EstimateID = Users.ID), 0)
+
+	, [WO Details Add-Ons Written] = ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+            INNER JOIN WorkOrderDetails On WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+        WHERE Sales.Hide = 0
+			AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND WorkOrderDetails.Hide = 0 
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+            AND WorkOrderDetails.DateCompleted Is Not NULL
+            AND SalesItems.ProductID IN (
+				SELECT ID 
+				FROM AddProds)
+            AND WorkOrderDetails.EstimateID = Users.ID), 0)
+
+	, [Attachment Rate] = 
+		CASE
+		WHEN ISNULL((
+			SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+			FROM Sales
+				INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+				INNER JOIN WorkOrderDetails On WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+			WHERE Sales.Hide = 0
+				AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+				AND WorkOrderDetails.Hide = 0 
+				AND SalesItems.Hide = 0
+				AND SalesItems.Quantity > 0
+				AND WorkOrderDetails.DateCompleted Is Not NULL
+				AND SalesItems.ProductID IN (
+					SELECT ID 
+					FROM LabProds)
+				AND WorkOrderDetails.EstimateID = Users.ID), 0) = 0
+		THEN 0
+		ELSE ISNULL(CAST(((
+			SELECT SUM(SalesItems.Price * SalesItems.Quantity)
+			FROM Sales
+				INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+				INNER JOIN WorkOrderDetails On WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+			WHERE Sales.Hide = 0
+				AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+				AND WorkOrderDetails.Hide = 0 
+				AND SalesItems.Hide = 0
+				AND SalesItems.Quantity > 0
+				AND WorkOrderDetails.DateCompleted Is Not NULL
+				AND SalesItems.ProductID IN (
+					SELECT ID 
+					FROM AddProds)
+				AND WorkOrderDetails.EstimateID = Users.ID) * 100.0 / (
+			SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+			FROM Sales
+				INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+				INNER JOIN WorkOrderDetails On WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+			WHERE Sales.Hide = 0
+				AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+				AND WorkOrderDetails.Hide = 0 
+				AND SalesItems.Hide = 0
+				AND SalesItems.Quantity > 0
+				AND WorkOrderDetails.DateCompleted Is Not NULL
+				AND SalesItems.ProductID IN (
+					SELECT ID 
+					FROM LabProds)
+				AND WorkOrderDetails.EstimateID = Users.ID)) as DECIMAL (10,2)), 0)
+		END
+
+	, [Avg. WO Detail Created $] = 
+		CASE
+		WHEN ISNULL((
+			SELECT COUNT(DISTINCT WorkOrderDetails.ID)
+			FROM Sales 
+				INNER JOIN WorkOrderDetails On Sales.ID = WorkOrderDetails.SalesID
+			WHERE Sales.Hide = 0
+				AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+				AND WorkOrderDetails.Hide = 0
+				AND WorkOrderDetails.DateCompleted Is Not NULL
+				AND WorkOrderDetails.EstimateID = Users.ID), 0) = 0
+		THEN 0
+		ELSE (ISNULL((
+			SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+			FROM Sales
+				INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+				INNER JOIN WorkOrderDetails On WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+			WHERE Sales.Hide = 0
+				AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+				AND WorkOrderDetails.Hide = 0 
+				AND SalesItems.Hide = 0
+				AND SalesItems.Quantity > 0
+				AND WorkOrderDetails.DateCompleted Is Not Null
+				AND SalesItems.ProductID IN (
+					SELECT ID 
+					FROM AddProds)
+				AND WorkOrderDetails.EstimateID = Users.ID), 0) + ISNULL((
+			SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+			FROM Sales
+				INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+				INNER JOIN WorkOrderDetails On WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+			WHERE WorkOrderDetails.Hide = 0
+				AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+				AND Sales.Hide = 0
+				AND SalesItems.Hide = 0
+				AND SalesItems.Quantity > 0
+				AND WorkOrderDetails.DateCompleted Is Not NULL
+				AND SalesItems.ProductID IN (
+					SELECT ID 
+					FROM LabProds)
+				AND WorkOrderDetails.EstimateID = Users.ID), 0)) / ISNULL((
+			SELECT COUNT(DISTINCT WorkOrderDetails.ID)
+			FROM Sales 
+				INNER JOIN WorkOrderDetails On Sales.ID = WorkOrderDetails.SalesID
+			WHERE Sales.Hide = 0
+				AND WorkOrderDetails.DateCreated BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+				AND WorkOrderDetails.Hide = 0
+				AND WorkOrderDetails.DateCompleted Is Not NULL
+				AND WorkOrderDetails.EstimateID = Users.ID), 0)
+		END
+
+	, [Sales Made At Delivery] = ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+        WHERE Sales.Hide = 0
+			AND Sales.FinishDate BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND Sales.WorkOrder = 1
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+			AND SalesItems.WorkOrderDetailID IS NULL
+            AND SalesItems.ProductID IN (
+				SELECT ID 
+				FROM AddProds)
+            AND Sales.CommissionID = Users.ID), 0)
+
+	, [Labor Closed] = ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+			INNER JOIN WorkOrderDetails On WorkOrderDetails.ID = SalesItems.WorkOrderDetailID
+		WHERE WorkOrderDetails.Hide = 0 
+			AND Sales.FinishDate BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND Sales.Hide = 0
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+            AND WorkOrderDetails.DateCompleted Is Not NULL
+            AND (SalesItems.ProductID IN (
+				SELECT ID 
+				FROM LabProds) OR SalesItems.ProductID IN (
+				SELECT ID 
+				FROM ServProds))
+            AND WorkOrderDetails.EstimateID = Users.ID), 0) + ISNULL((
+		SELECT SUM(SalesItems.Price * SalesItems.Quantity) 
+		FROM Sales
+			INNER JOIN SalesItems On Sales.ID = SalesItems.SalesID
+		WHERE Sales.Hide = 0
+			AND Sales.FinishDate BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND SalesItems.Hide = 0
+			AND SalesItems.Quantity > 0
+			AND SalesItems.WorkOrderDetailID IS NULL
+            AND (SalesItems.ProductID IN (
+				SELECT ID 
+				FROM LabProds) OR SalesItems.ProductID IN (
+				SELECT ID 
+				FROM ServProds))
+			AND Sales.CommissionID = Users.ID), 0)
+
+FROM Users
+WHERE ID IN (
+	SELECT WorkOrderDetails.ServiceID 
+	FROM Sales
+		INNER JOIN WorkOrderDetails On Sales.ID = WorkOrderDetails.SalesID
+	WHERE Sales.Hide = 0
+		AND Sales.FinishDate BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+		AND WorkOrderDetails.Hide = 0 
+		AND WorkOrderDetails.DateCompleted Is Not NULL)
+	OR ID IN (
+		SELECT WorkOrderDetails.EstimateID 
+		FROM Sales
+			INNER JOIN WorkOrderDetails On Sales.ID = WorkOrderDetails.SalesID
+		WHERE Sales.Hide = 0
+			AND Sales.FinishDate BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date)
+			AND WorkOrderDetails.Hide = 0 
+			AND WorkOrderDetails.DateCompleted Is Not NULL)
+	OR ID IN (
+		SELECT SerialNos.BuilderID 
+		FROM SerialNos 
+		WHERE SerialNos.Hide = 0 
+			AND SerialNos.DateBuilt BETWEEN cast(DATEADD(DAY, -1,getDate()) As Date) AND cast(DATEADD(DAY, 0,getDate()) As Date))
+ORDER BY
+	  [ID]
+	, [Employee]

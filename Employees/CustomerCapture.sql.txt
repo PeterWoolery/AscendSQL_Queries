@@ -1,0 +1,12 @@
+SELECT Locations.Name,
+
+(SELECT Count(Distinct(Sales.Barcode)) FROM Sales, Customers WHERE Sales.Hide <> 1 AND Sales.DateCreated BETWEEN GETDATE()-90 AND GetDate() AND Sales.CustomerID IS NOT NULL) AS [Transactions W/ Customers],
+
+(SELECT Count(Distinct(Sales.Barcode)) FROM Sales WHERE Sales.Hide <> 1 AND Sales.DateCreated BETWEEN GETDATE()-90 AND GetDate()) AS [Total Transactions], 
+
+
+(SELECT Count(Distinct(Sales.CustomerID)) FROM Sales, Customers WHERE Sales.Hide <> 1 AND Sales.DateCreated BETWEEN GETDATE()-90 AND GetDate() AND Sales.CustomerID = Customers.ID AND Customers.eMail LIKE '%@%') AS [Unique Emails Captured],
+
+(SELECT Count(Distinct(Sales.CustomerID)) FROM Sales WHERE Sales.Hide <> 1 AND Sales.DateCreated BETWEEN GETDATE()-90 AND GetDate()) As [Unique Customers Captured]
+
+FROM Locations WHERE Locations.ActiveStore = 1;

@@ -1,0 +1,29 @@
+SELECT [SKU] = Products.[Store UPC]
+                , [Product In Transaction] = Products.Description
+                , [Sales Person] = Users.FirstName + ' ' + Users.LastName
+                , [Sales $] = SUM(Sales.SubTotal)
+                , [Transactions] = COUNT(DISTINCT(Sales.Barcode))
+                , [Avg $/Trans] = ROUND(SUM(Sales.SubTotal) /  COUNT(DISTINCT(Sales.Barcode)), 2)
+FROM Products
+                , Sales
+                JOIN Users
+                                ON Sales.CommissionID = Users.ID
+WHERE Products.[Store UPC] = <<SKU>>
+AND Sales.Hide = 0
+AND Sales.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+AND Sales.Quote = 0
+AND Sales.ID IN (SELECT S2.ID
+                FROM Sales S2
+                                JOIN SalesItems
+                                                ON S2.ID = SalesItems.SalesID
+                                JOIN Products
+                                                ON SalesItems.ProductID = Products.ID
+                WHERE S2.Hide = 0
+                AND S2.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+                AND Sales.Quote = 0
+                AND SalesItems.Hide = 0
+                AND Products.[Store UPC] = <<SKU>>)
+GROUP BY  Products.[Store UPC]
+                , Products.Description
+                , Users.FirstName
+                , Users.LastName

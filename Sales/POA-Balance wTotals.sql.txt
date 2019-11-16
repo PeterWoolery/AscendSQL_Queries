@@ -1,0 +1,160 @@
+SELECT 
+	Customers.FirstName + ' ' + Customers.LastName AS Customer,
+	Customers.Company,
+	Customers.CreditLimit,
+	[Status] = 
+		CASE
+		WHEN Customers.POA_Status = 1 
+			THEN 'Active'
+		WHEN Customers.POA_Status = 2 
+			THEN 'Suspended'
+		ELSE 'UNKNOWN'
+		END,
+	[Total Purchases] = (
+		SELECT SUM(PurchaseOnAccount.Amount)
+		FROM PurchaseOnAccount
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID),
+	[Total Payments] = (
+		SELECT SUM(PaymentPOALiabilityXREF.Amount)
+		FROM PaymentPOALiabilityXREF
+			INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID
+			AND PaymentPOALiabilityXREF.PaymentID IS NOT NULL),
+	[OutStanding Balance] = ((
+		SELECT SUM(PurchaseOnAccount.Amount)
+		FROM PurchaseOnAccount
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID) - (
+		SELECT ISNULL(SUM(PaymentPOALiabilityXREF.Amount),0)
+		FROM PaymentPOALiabilityXREF
+			INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID
+			AND PaymentPOALiabilityXREF.PaymentID IS NOT NULL)),
+	[Outstanding Credit Memos] = (
+		SELECT ISNULL(SUM(Liabilities.Amount), 0)
+		FROM PaymentPOALiabilityXREF
+			INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+			INNER JOIN Liabilities On PaymentPOALiabilityXREF.LiabilitiesID = Liabilities.LiabilityNumber
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID
+			AND PaymentPOALiabilityXREF.LiabilitiesID IS NOT NULL
+			AND Liabilities.LiabilityTypeID = 'M'
+			AND Liabilities.RedeemingPaymentID IS NULL),
+	[Days Since Last Payment] = (
+		SELECT DATEDIFF(DAY, MAX(PaymentPOALiabilityXREF.DateCreated), GETDATE())
+			FROM PaymentPOALiabilityXREF
+				INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+			WHERE PurchaseOnAccount.Hide = 0
+				AND PurchaseOnAccount.CustomerID = Customers.ID
+				AND PaymentPOALiabilityXREF.PaymentID IS NOT NULL)
+FROM Customers
+WHERE Customers.POA_Status IN (1, 2)
+	AND Customers.Hide = 0
+	AND (((
+		SELECT SUM(PurchaseOnAccount.Amount)
+		FROM PurchaseOnAccount
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID) - (
+		SELECT ISNULL(SUM(PaymentPOALiabilityXREF.Amount),0)
+		FROM PaymentPOALiabilityXREF
+			INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID
+			AND PaymentPOALiabilityXREF.PaymentID IS NOT NULL)) > 0
+			OR (
+				SELECT ISNULL(SUM(Liabilities.Amount),0)
+				FROM PaymentPOALiabilityXREF
+					INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+					INNER JOIN Liabilities On PaymentPOALiabilityXREF.LiabilitiesID = Liabilities.LiabilityNumber
+				WHERE PurchaseOnAccount.Hide = 0
+					AND PurchaseOnAccount.CustomerID = Customers.ID
+					AND PaymentPOALiabilityXREF.LiabilitiesID IS NOT NULL
+					AND Liabilities.LiabilityTypeID = 'M'
+					AND Liabilities.RedeemingPaymentID IS NULL) > 0)
+
+UNION
+
+SELECT 
+	'zzTotal:' AS Customer,
+	NULL,
+	NULL,
+	NULL,
+	SUM(CustomerPOA.[Total Purchases]),
+	SUM(CustomerPOA.[Total Payments]),
+	SUM(CustomerPOA.[Outstanding Balance]),
+	SUM(CustomerPOA.[Outstanding Credit Memos]),
+	NULL
+FROM (
+	SELECT 
+		Customers.FirstName + ' ' + Customers.LastName AS Customer,
+		Customers.Company,
+		Customers.CreditLimit,
+		[Status] = 
+			CASE
+			WHEN Customers.POA_Status = 1 
+				THEN 'Active'
+			WHEN Customers.POA_Status = 2 
+				THEN 'Suspended'
+			ELSE 'UNKNOWN'
+			END,
+		[Total Purchases] = (
+			SELECT SUM(PurchaseOnAccount.Amount)
+			FROM PurchaseOnAccount
+			WHERE PurchaseOnAccount.Hide = 0
+				AND PurchaseOnAccount.CustomerID = Customers.ID),
+		[Total Payments] = (
+			SELECT SUM(PaymentPOALiabilityXREF.Amount)
+			FROM PaymentPOALiabilityXREF
+				INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+			WHERE PurchaseOnAccount.Hide = 0
+				AND PurchaseOnAccount.CustomerID = Customers.ID
+				AND PaymentPOALiabilityXREF.PaymentID IS NOT NULL),
+		[OutStanding Balance] = ((
+			SELECT SUM(PurchaseOnAccount.Amount)
+			FROM PurchaseOnAccount
+			WHERE PurchaseOnAccount.Hide = 0
+				AND PurchaseOnAccount.CustomerID = Customers.ID) - (
+			SELECT ISNULL(SUM(PaymentPOALiabilityXREF.Amount),0)
+			FROM PaymentPOALiabilityXREF
+				INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+			WHERE PurchaseOnAccount.Hide = 0
+				AND PurchaseOnAccount.CustomerID = Customers.ID
+				AND PaymentPOALiabilityXREF.PaymentID IS NOT NULL)),
+		[Outstanding Credit Memos] = (
+				SELECT ISNULL(SUM(Liabilities.Amount), 0)
+				FROM PaymentPOALiabilityXREF
+					INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+					INNER JOIN Liabilities On PaymentPOALiabilityXREF.LiabilitiesID = Liabilities.LiabilityNumber
+				WHERE PurchaseOnAccount.Hide = 0
+					AND PurchaseOnAccount.CustomerID = Customers.ID
+					AND PaymentPOALiabilityXREF.LiabilitiesID IS NOT NULL
+					AND Liabilities.LiabilityTypeID = 'M'
+					AND Liabilities.RedeemingPaymentID IS NULL),
+		[Days Since Last Payment] = NULL
+FROM Customers
+WHERE Customers.POA_Status IN (1, 2)
+	AND Customers.Hide = 0
+	AND (((
+		SELECT SUM(PurchaseOnAccount.Amount)
+		FROM PurchaseOnAccount
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID) - (
+		SELECT ISNULL(SUM(PaymentPOALiabilityXREF.Amount),0)
+		FROM PaymentPOALiabilityXREF
+			INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+		WHERE PurchaseOnAccount.Hide = 0
+			AND PurchaseOnAccount.CustomerID = Customers.ID
+			AND PaymentPOALiabilityXREF.PaymentID IS NOT NULL)) > 0
+			OR (
+				SELECT ISNULL(SUM(Liabilities.Amount),0)
+				FROM PaymentPOALiabilityXREF
+					INNER JOIN PurchaseOnAccount On PaymentPOALiabilityXREF.PurchaseOnAccountID = PurchaseOnAccount.ID
+					INNER JOIN Liabilities On PaymentPOALiabilityXREF.LiabilitiesID = Liabilities.LiabilityNumber
+				WHERE PurchaseOnAccount.Hide = 0
+					AND PurchaseOnAccount.CustomerID = Customers.ID
+					AND PaymentPOALiabilityXREF.LiabilitiesID IS NOT NULL
+					AND Liabilities.LiabilityTypeID = 'M'
+					AND Liabilities.RedeemingPaymentID IS NULL) > 0)) CustomerPOA

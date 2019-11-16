@@ -1,0 +1,12 @@
+SELECT SerialNos.ID,
+       SerialNos.DateBuilt,
+       Users.FirstName+ ' ' +Users.LastName As [Builder],
+	   SerialNos.SerialNo,
+	   Products.Price As MSRP
+FROM SerialNos JOIN Products
+ON SerialNos.ProductID=Products.ID
+JOIN Users
+ON Users.ID=SerialNos.BuilderID
+WHERE SerialNos.Hide=0
+AND DateBuilt BETWEEN <<StartDate>> AND <<EndDate>>
+ORDER BY DateBuilt

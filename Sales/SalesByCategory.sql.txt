@@ -1,0 +1,20 @@
+SELECT Categories.Topic AS Category,
+	SUM(SalesItems.Quantity * SalesItems.Price) AS Sales,
+	SUM(SalesItems.Quantity * SalesItems.COGS) AS COGS,
+	[Margin] = CASE
+		WHEN SUM(SalesItems.Quantity * SalesItems.Price) = 0
+		THEN 0
+		ELSE (SUM(SalesItems.Quantity * SalesItems.Price) -
+	 		SUM(SalesItems.Quantity * SalesItems.COGS)) /
+			SUM(SalesItems.Quantity * SalesItems.Price) * 100
+		END,
+	SUM(SalesItems.Quantity) AS [Unit Sales]
+FROM Sales, SalesItems, Products, Categories
+WHERE Sales.Hide = 0
+AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+AND Sales.ID = SalesItems.SalesID
+AND SalesItems.Hide = 0
+AND SalesItems.ProductID = Products.ID
+AND Products.TopicID *= Categories.ID
+GROUP BY Categories.Topic
+ORDER BY Categories.Topic

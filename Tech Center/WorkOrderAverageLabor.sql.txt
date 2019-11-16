@@ -1,0 +1,50 @@
+SELECT Users.FirstName + ' ' + Users.LastName AS Mechanic,
+                (SELECT COUNT(Sales.Barcode)
+                                FROM Sales, WorkOrderDetails
+                                WHERE Sales.Hide = 0
+                                AND Sales.WorkOrder = 1
+                                AND Sales.ID = WorkOrderDetails.SalesID
+                                AND WorkOrderDetails.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+                                AND WorkOrderDetails.EstimateID = Users.ID) AS [WO Count],
+                (SELECT SUM(SalesItems.Quantity * SalesItems.Price)
+                                FROM Sales, SalesItems, WorkOrderDetails, Products, Categories
+                                WHERE Sales.Hide = 0
+                                AND Sales.WorkOrder = 1
+                                AND Sales.ID = WorkOrderDetails.SalesID
+                                AND WorkOrderDetails.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+                                AND WorkOrderDetails.EstimateID = Users.ID
+                                AND Sales.ID = SalesItems.SalesID
+                                AND SalesItems.Hide = 0
+                                AND SalesItems.ProductID = Products.ID
+                                AND Products.TopicID = Categories.ID
+                                AND Categories.Topic = 'Labor') as [Labor $],
+                [Avg$/WO] = CASE
+                                WHEN (SELECT COUNT(Sales.Barcode)
+                                                FROM Sales, WorkOrderDetails
+                                                WHERE Sales.Hide = 0
+                                                AND Sales.WorkOrder = 1
+                                                AND Sales.ID = WorkOrderDetails.SalesID
+                                                AND WorkOrderDetails.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+                                                AND WorkOrderDetails.EstimateID = Users.ID) = 0
+                                THEN 0
+                                ELSE (SELECT SUM(SalesItems.Quantity * SalesItems.Price)
+                                               FROM Sales, SalesItems, WorkOrderDetails, Products, Categories
+                                                WHERE Sales.Hide = 0
+                                                AND Sales.WorkOrder = 1
+                                                AND Sales.ID = WorkOrderDetails.SalesID
+                                                AND WorkOrderDetails.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>                                   
+                                                AND WorkOrderDetails.EstimateID = Users.ID
+                                                AND Sales.ID = SalesItems.SalesID
+                                                AND SalesItems.Hide = 0
+                                                AND SalesItems.ProductID = Products.ID
+                                                AND Products.TopicID = Categories.ID
+                                                AND Categories.Topic = 'Labor') /
+                                                (SELECT COUNT(Sales.Barcode)
+                                                FROM Sales, WorkOrderDetails
+                                                WHERE Sales.Hide = 0
+                                                AND Sales.WorkOrder = 1
+                                                AND Sales.ID = WorkOrderDetails.SalesID
+                                                AND WorkOrderDetails.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+                                                AND WorkOrderDetails.EstimateID = Users.ID)
+                                END
+FROM Users;

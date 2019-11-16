@@ -1,0 +1,54 @@
+SELECT [Employee] = Users.FirstName + ' ' + Users.LastName
+	, [Date] = CONVERT(VARCHAR, TimeClock.StartTime, 112)
+	, [Regular Hours] = CASE
+		WHEN ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2) > 8
+		THEN 8
+		ELSE ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2)
+		END
+	, [Overtime Hours] = CASE
+		WHEN ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2) > 8
+		THEN ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2) - 8
+		ELSE 0
+		END
+FROM Users
+	JOIN TimeClock 
+		ON TimeClock.UserID = Users.ID
+WHERE TimeClock.Hide = 0
+AND TimeClock.StartTime BETWEEN <<StartDate>> AND <<EndDate>>
+GROUP BY Users.FirstName
+	, Users.LastName
+	, CONVERT(VARCHAR, TimeClock.StartTime, 112)
+UNION ALL
+SELECT [Employee] = Users.FirstName + ' ' + Users.LastName
+	, [Date] = 'zzTotal'
+	, [Regular Hours] = DY.[Day Hours]
+	, [Overtime Hours] = DY.[Day Over Time]
+FROM Users
+	JOIN (SELECT TT.ID
+			, [Day Hours] = SUM(TT.[Day Hours])
+			, [Day Over Time] = SUM(TT.[Day Over Time])
+		FROM (SELECT Users.ID
+			, [Date] = CONVERT(VARCHAR, TimeClock.StartTime, 112)
+			, [Day Hours] = CASE
+				WHEN ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2) > 8
+				THEN 8
+				ELSE ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2)
+				END
+			, [Day Over Time] = CASE
+				WHEN ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2) > 8
+				THEN ROUND(SUM(DATEDIFF(SS,TimeClock.StartTime,TimeClock.EndTime)/3600.00),2) - 8
+				ELSE 0
+				END
+			, [Week Hours] = NULL
+			, [Week Over Time] = NULL
+		FROM Users
+			JOIN TimeClock 
+				ON TimeClock.UserID = Users.ID
+		WHERE TimeClock.Hide = 0
+		AND TimeClock.StartTime BETWEEN <<StartDate>> AND <<EndDate>>
+		GROUP BY Users.ID
+			, CONVERT(VARCHAR, TimeClock.StartTime, 112)) TT
+		GROUP BY TT.ID) DY
+	ON Users.ID = DY.ID
+ORDER BY [Employee]
+	, [Date]

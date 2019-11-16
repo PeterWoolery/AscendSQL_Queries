@@ -1,0 +1,21 @@
+SELECT Sales.ID
+                , Sales.BarCode
+                , [Customer] = Customers.FirstName + ' ' + Customers.LastName
+                , Payments.DateCreated
+                , Payments.CardType
+                , Payments.AuthCode
+                , Payments.Amount
+                , Payments.Suppdata
+                , Payments.BatchCode
+                , Payments.ForceAuth
+                , Payments.VoidAuthCode
+                , Payments.Sequence
+                , Payments.Hide
+FROM Sales
+                LEFT JOIN Customers
+                                ON Sales.CustomerID = Customers.ID
+                JOIN Payments
+                                ON Sales.ID = Payments.SalesID
+WHERE Payments.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+AND Payments.Hide = 0
+ORDER BY Payments.DateCreated;

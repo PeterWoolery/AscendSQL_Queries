@@ -1,0 +1,26 @@
+SELECT 	[Category] = CASE
+		WHEN Products.TopicID IS NULL
+		THEN '**No Category'
+		ELSE Categories.Topic
+	END,
+	[Unit Cost] = ROUND((SUM(CASE
+		WHEN ((Products.AvgCost IS NULL OR Products.AvgCost = 0) 
+		AND Products.EstCost <> 0) 
+		THEN Products.Quantity * EstCost/Division
+		ELSE Products.Quantity * AvgCost
+		END)) / 
+		SUM(Products.Quantity),2),
+	SUM(Products.Quantity) AS Units,
+	[Total Cost] = SUM(CASE
+		WHEN ((Products.AvgCost IS NULL OR Products.AvgCost = 0) 
+		AND Products.EstCost <> 0) 
+		THEN Products.Quantity * EstCost/Division
+		ELSE Products.Quantity * AvgCost
+		END),
+	SUM(Products.Quantity * Products.Price) AS [Retail Value]
+FROM Products, Categories
+WHERE Products.Hide = 0
+AND Products.Quantity > 0
+AND Products.TopicID *= Categories.ID
+GROUP BY Products.TopicID, Categories.Topic
+ORDER BY [Category];

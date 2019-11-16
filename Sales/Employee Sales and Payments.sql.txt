@@ -1,0 +1,1 @@
+SELECT Users.FirstName + ' ' + Users.LastName, SUM(Sales.Total) AS [Sales $ Created], SUM(Sales.Payments) AS [Payments Taken] FROM Sales, Users WHERE Sales.CommissionID = Users.ID AND Sales.Hide <> 1 AND Sales.Quote <> 1 AND Sales.DateCreated BETWEEN <<StartDate>> AND <<EndDate>> GROUP BY Users.FirstName, Users.LastName ORDER BY Users.FirstName, Users.LastName

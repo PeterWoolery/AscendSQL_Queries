@@ -1,0 +1,3 @@
+UPDATE Sales 
+SET IsOpenDate = null, IsOpenUser = null, IsOpenWorkstation = null
+WHERE BarCode = <<BarCode>>

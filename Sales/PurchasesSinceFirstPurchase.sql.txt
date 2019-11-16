@@ -1,0 +1,8 @@
+Select 
+		Customers.FirstName + ' ' + Customers.LastName as Customer,
+		(Count (Sales.ID) - 1) as "# of Purchases Since 1st Purchase"
+	From Customers
+	Left Join Sales on Customers.Id = sales.CustomerID
+	Where sales.Hide = 0 
+        AND Customers.Hide = 0
+	Group By Customers.LastName, Customers.FirstName

@@ -1,0 +1,76 @@
+SELECT     SalesItems.Description,
+
+
+    	SalesItems.Quantity,
+
+    
+	SalesItems.Price,
+
+    
+	SalesItems.Quantity * SalesItems.Price AS 
+Extended,
+
+
+    TaxTypes.Description AS TaxType,
+
+
+    SalesItemTax.Rate AS TaxRate,
+
+
+    SalesItemTax.Amount AS TaxAmount
+
+
+FROM Sales, SalesItems, SalesItemTax, TaxTypes
+
+
+WHERE Sales.ID = SalesItems.SalesID
+
+
+AND SalesItems.Hide = 0
+
+
+AND Sales.FinishDate IS NOT NULL
+
+
+AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+
+
+AND SalesItems.ID = SalesItemTax.SalesItemID
+
+
+AND SalesItemTax.TaxTypeID = TaxTypes.ID
+
+UNION
+
+
+SELECT NULL, NULL, NULL, NULL,
+
+
+    'z Total Tax: ' AS TaxType, NULL,
+
+
+    SUM(SalesItemTax.Amount)
+
+
+FROM Sales, SalesItems, SalesItemTax, TaxTypes
+
+
+WHERE Sales.ID = SalesItems.SalesID
+
+
+AND SalesItems.Hide = 0
+
+
+AND Sales.FinishDate IS NOT NULL
+
+
+AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+
+
+AND SalesItems.ID = SalesItemTax.SalesItemID
+
+
+AND SalesItemTax.TaxTypeID = TaxTypes.ID
+
+
+ORDER BY [TaxType]

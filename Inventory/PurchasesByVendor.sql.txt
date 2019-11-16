@@ -1,0 +1,11 @@
+SELECT Vendors.Name,
+SUM(OrderItems.Quantity) AS [Units Received],
+SUM(OrderItems.Quantity * OrderItems.Cost) AS [Amt Received]
+FROM Orders, OrderItems, Vendors
+WHERE OrderItems.DateReceived BETWEEN <<StartDate>> AND <<EndDate>>
+AND OrderItems.Hide = 0
+AND OrderItems.OrderID = Orders.ID
+AND Orders.Hide = 0
+AND Orders.VendorID = Vendors.ID
+GROUP BY Vendors.Name
+ORDER BY Vendors.Name;

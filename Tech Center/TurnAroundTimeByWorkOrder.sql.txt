@@ -1,0 +1,31 @@
+SELECT
+	                  [DateCompleted] = WorkOrderDetails.DateCompleted
+                        , [TurnTime] = DATEDIFF(DD,CONVERT(varchar, WorkOrderDetails.DateCreated, 112), CONVERT(varchar, WorkOrderDetails.DateCompleted, 112))
+	                , [Employee] = Users.FirstName + ' ' + Users.LastName
+	                , [Workorder #] = WorkOrderDetails.TicketNumber
+	                , [Customer] = Customers.FirstName + ' ' + Customers.LastName
+	                , [SalesItems on Detail] = (
+		                SELECT[*] = Products.Description + ', ' 
+		                FROM SalesItems
+			            INNER JOIN Products ON SalesItems.ProductID = Products.ID
+		                WHERE SalesItems.WorkOrderDetailID = WorkOrderDetails.ID
+			                AND SalesItems.Hide = 0 
+		                ORDER BY Products.Description
+		                FOR XML PATH(''), ELEMENTS) 
+                FROM WorkOrderDetails
+	            INNER JOIN Customers ON WorkOrderDetails.CustomerID = Customers.ID
+	            INNER JOIN Users ON WorkOrderDetails.ServiceID = Users.ID
+                WHERE WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>>
+	                AND WorkOrderDetails.Hide = 0
+                GROUP BY 
+	                WorkOrderDetails.ID,
+	                WorkOrderDetails.DateCompleted,
+                        WorkOrderDetails.DateCreated,
+	                Users.FirstName + ' ' + Users.LastName,
+	                WorkOrderDetails.TicketNumber,
+	                Customers.FirstName + ' ' + Customers.LastName,
+	                WorkOrderDetails.EstTime,
+	                WorkOrderDetails.ActualTime,
+	                WorkOrderDetails.ActualTime-WorkOrderDetails.EstTime
+                ORDER BY 
+	                WorkOrderDetails.DateCompleted

@@ -1,0 +1,1 @@
+Select ID as ID,[Store UPC] as SKU ,Description as Description ,AvgCost as Cost,Quantity as Quantity,AvgCost * Quantity as [Total Cost]  from Products WHERE (Hide <> 1 OR Hide IS NULL) AND Quantity <> 0 AND NonInventory != 1 ORDER BY [Store UPC]

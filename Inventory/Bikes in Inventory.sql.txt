@@ -1,0 +1,1 @@
+SELECT Products.Quantity, Products.Description FROM Products, Categories WHERE Products.TopicID = Categories.ID AND Categories.Topic LIKE 'Bike%' AND Products.Hide <> 1 and Products.Quantity > 0 ORDER BY Products.Description

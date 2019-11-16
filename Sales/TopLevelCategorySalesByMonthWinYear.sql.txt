@@ -1,0 +1,99 @@
+SELECT Products.Parent AS [Category],
+
+                DATEPART(yyyy, Sales.FinishDate) AS [Year],
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 1 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Jan,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 2 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Feb,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 3 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Mar,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 4 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Apr,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 5 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS May,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 6 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Jun,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 7 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Jul,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 8 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Aug,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 9 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Sep,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 10 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Oct,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 11 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Nov,
+
+                SUM(CASE DATEPART(m, Sales.FinishDate) WHEN 12 THEN SalesItems.Quantity * SalesItems.Price ELSE NULL END) AS Dec,
+
+                SUM(SalesItems.QUantity * SalesItems.Price) AS Total
+
+FROM Sales, SalesItems,
+
+                (SELECT Products.ID,
+
+                                Products.TopicID,
+
+                                [Parent] = CASE
+
+                                                WHEN Products.TopicID IS NULL THEN '**No Category**'
+
+                                                WHEN (SELECT Categories.TopParentID
+
+                                                                FROM Categories
+
+                                                                WHERE Products.TopicID = Categories.ID
+
+                                                                AND Categories.Hide = 0) IS NULL
+
+                                                THEN (SELECT Categories.Topic
+
+                                                                FROM Categories
+
+                                                                WHERE Products.TopicID = Categories.ID
+
+                                                                AND Categories.Hide = 0)
+
+                                                WHEN (SELECT Categories.TopParentID
+
+                                                                FROM Categories
+
+                                                                WHERE Products.TopicID = Categories.ID
+
+                                                                AND Categories.Hide = 0) IS NOT NULL
+
+                                                THEN (SELECT C1.Topic
+
+                                                                FROM Categories C1
+
+                                                                WHERE C1.ID = (SELECT Categories.TopParentID
+
+                                                                FROM Categories
+
+                                                                WHERE Products.TopicID = Categories.ID
+
+                                                                AND Categories.Hide = 0))
+
+                                END
+
+                FROM Products) Products
+
+WHERE DATEPART(YYYY, Sales.FinishDate) = <<Enter Year - YYYY>> 
+
+AND Sales.FinishDate IS NOT NULL
+
+AND Sales.Hide = 0
+
+AND Sales.ID = SalesItems.SalesID
+
+AND SalesItems.Hide = 0
+
+AND SalesItems.ProductID = Products.ID
+
+GROUP BY Products.Parent,
+
+                DATEPART(yyyy, Sales.FinishDate)
+
+ORDER BY Products.Parent,
+
+                DATEPART(yyyy, Sales.FinishDate);

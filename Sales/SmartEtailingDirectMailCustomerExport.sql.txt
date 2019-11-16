@@ -1,0 +1,33 @@
+SELECT TOP <<Enter # of Customers:|30000>> Customers.ID,
+                Customers.FirstName,
+                                Customers.LastName,
+                Customers.Address,
+                Customers.Address2,
+                Customers.City,
+                Customers.State,
+                Customers.ZIP,
+                Customers.Phone,
+                Customers.EMail,
+                SUM(1) As Visits,
+                SUM(Sales.SubTotal) AS [Sales Excluding Tax],
+                ROUND(SUM(Sales.SubTotal) / SUM (1), 2) AS [Sales Per Visit],
+                [Last Visit] = (SELECT MAX(Sales.FinishDate)
+                                FROM Sales
+                                WHERE Customers.ID = Sales.CustomerID
+                                AND Sales.Hide = 0)
+FROM Customers, Sales
+WHERE Sales.Hide = 0
+AND Customers.ID = Sales.CustomerID
+And Customers.MailList = 1
+AND Sales.FinishDate BETWEEN <<StartDate>> AND <<EndDate>>
+GROUP BY Customers.ID,
+                Customers.FirstName,
+                                Customers.LastName,
+                Customers.Address,
+                Customers.Address2,
+                Customers.City,
+                Customers.State,
+                Customers.ZIP,
+                Customers.Phone,
+                Customers.EMail
+ORDER BY Visits

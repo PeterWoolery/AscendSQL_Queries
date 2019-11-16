@@ -1,0 +1,25 @@
+SELECT Customers.ID
+                , [Date] = CASE
+                                WHEN Customers.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+                                THEN Customers.DateCreated
+                                ELSE Customers.DateModified
+                                END
+                , Customers.FirstName
+                , Customers.LastName
+                , Customers.Address
+                , Customers.Address2
+                , Customers.City
+                , Customers.State
+                , Customers.Zip
+                , [Phone] = SUBSTRING(Customers.Phone, 1, 3) + ' ' +
+                                SUBSTRING(Customers.Phone, 4, 3) + ' ' +
+                                SUBSTRING(Customers.Phone, 7, 4)
+                , Customers.Email
+                , [Sales] = (SELECT SUM(Sales.Total)
+                                FROM Sales
+                                WHERE Sales.Hide = 0
+                                AND Sales.FinishDate IS NOT NULL
+                                AND Customers.ID = Sales.CustomerID)
+FROM Customers
+WHERE Customers.Hide = 0
+AND Customers.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>

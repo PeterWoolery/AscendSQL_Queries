@@ -1,0 +1,86 @@
+SELECT Users.FirstName + ' ' + Users.LastName AS [Team Member],
+
+ROUND((SELECT SUM(Payments) From Sales 
+		Where (Sales.Hide <> 1 Or Sales.Hide Is Null) 
+		AND Sales.DateCreated BETWEEN <<StartDate>> AND <<EndDate>> 
+		AND Sales.CommissionID = Users.ID),2) AS [GOAL - Total Sales $], 
+
+
+
+(Select SUM(SalesItems.Quantity * SalesItems.Price)
+	FROM Sales, SalesItems, Products, categories, WorkOrderDetails 
+	Where Sales.Hide = 0 
+	AND WorkOrderDetails.ServiceID = Users.ID
+	AND Sales.WorkOrder = 1 
+	AND WorkOrderDetails.DateCompleted BETWEEN <<StartDate>> AND <<EndDate>> 
+	AND Sales.ID = SalesItems.SalesID 
+	AND SalesItems.Hide = 0 
+	AND Sales.ID = WorkOrderDetails.SalesID 
+	AND SalesItems.ProductID = Products.ID 
+	AND Products.TopicID = Categories.ID 
+	AND Categories.Topic LIKE 'Labor%') as [GOAL - Labor Completed],
+
+
+
+
+(Select SUM(SalesItems.Quantity * SalesItems.Price)
+	FROM Sales, SalesItems, Products, categories, WorkOrderDetails 
+	Where Sales.Hide = 0 
+	AND WorkOrderDetails.EstimateID = Users.ID
+	AND Sales.WorkOrder = 1 
+	AND WorkOrderDetails.DateCreated BETWEEN <<StartDate>> AND <<EndDate>> 
+	AND Sales.ID = SalesItems.SalesID 
+	AND SalesItems.Hide = 0 
+	AND Sales.ID = WorkOrderDetails.SalesID 
+	AND SalesItems.ProductID = Products.ID 
+	AND Products.TopicID = Categories.ID 
+	AND Categories.Topic LIKE 'Labor%') /
+(SELECT COUNT(Sales.Barcode)
+        FROM Sales, WorkOrderDetails
+        WHERE Sales.Hide = 0
+        AND Sales.WorkOrder = 1
+        AND Sales.ID = WorkOrderDetails.SalesID
+        AND WorkOrderDetails.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+        AND WorkOrderDetails.EstimateID = Users.ID) as [GOAL - Avg Labor Writup],
+
+
+
+(SELECT COUNT(Sales.Barcode)
+        FROM Sales, WorkOrderDetails
+        WHERE Sales.Hide = 0
+        AND Sales.WorkOrder = 1
+        AND Sales.ID = WorkOrderDetails.SalesID
+        AND WorkOrderDetails.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
+        AND WorkOrderDetails.EstimateID = Users.ID) AS [QUALFIER - Writeups],
+
+
+
+(SELECT Count(SalesItems.SalesID)
+    FROM  Sales
+    INNER JOIN SalesItems On SalesItems.SalesID = Sales.ID
+    INNER JOIN Products On Products.ID = SalesItems.ProductID
+    INNER JOIN Categories On Categories.ID = Products.TopicID
+    AND Products.TopicID IN (SELECT Categories.ID
+                FROM Categories
+                WHERE Categories.Topic = 'Bikes'
+                UNION
+                SELECT C1.ID
+                FROM Categories C1, Categories C2
+                WHERE C2.Topic = 'Bikes'
+                AND C1.TopParentID = C2.ID)
+    And Sales.Hide = 0
+        And SalesItems.Hide = 0
+        And Products.Hide = 0
+        And Sales.CommissionID = Users.ID
+        And Sales.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>) as [QUALIFIER - Bikes Sold],
+
+
+
+ROUND((SELECT SUM(DATEDIFF(s,TimeClock.StartTime,TimeClock.EndTime)/3600.00) 
+	From TimeClock 
+	Where (Hide <> 1 Or Hide Is Null) 
+	AND TimeClock.StartTime BETWEEN <<StartDate>> AND <<EndDate>> 
+	AND Users.ID = TimeClock.UserID),2) as [QUALIFIER - Hours Worked]
+
+
+FROM Users;

@@ -1,0 +1,33 @@
+SELECT
+
+Products.ID AS [PID],
+Products.[Store UPC] AS SKU,
+Products.Description,
+[Cost] = CASE WHEN Products.AvgCost = 0  THEN Products.EstCost/Products.Division
+		ELSE Products.AvgCost
+		END,
+Products.Price AS MSRP,
+Products.Quantity AS QOH,
+Products.ReOrderLevel AS [MIN],
+Products.Maximum AS [MAX],
+Products.Min2,
+Products.Max2
+
+FROM
+
+Products JOIN VendorProducts
+ON Products.ID = VendorProducts.ProductID
+JOIN OrderItems
+ON OrderItems.VendorProductID = VendorProducts.ID
+JOIN Orders
+ON OrderItems.OrderID = Orders.ID
+JOIN Vendors
+ON Vendors.ID = Orders.VendorID
+
+WHERE
+
+OrderItems.Hide = 0
+AND VendorProducts.Hide = 0
+AND Products.Hide = 0
+AND Vendors.Name = <<Vendor>>
+AND OrderItems.DateReceived BETWEEN <<StartDate>> AND <<EndDate>>

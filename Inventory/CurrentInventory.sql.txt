@@ -1,0 +1,1 @@
+Select ID,ID,[Store UPC] as SKU, Description as Description, AvgCost as Cost, Quantity as Quantity, AvgCost * Quantity as ExtCost from Products WHERE NonInventory != 1

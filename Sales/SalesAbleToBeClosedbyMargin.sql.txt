@@ -1,0 +1,1 @@
+Select SUM((SalesItems.Price-SalesItems.COGS)*SalesItems.Quantity) AS [Gross Margin Closeable] FROM Sales, SalesItems WHERE SalesItems.SalesID = Sales.ID AND Sales.FinishDate IS NULL AND Sales. QUOTE <> 1 AND Sales.Hide <> 1 AND Sales.Payments = Sales.Total AND SalesItems.Hide <> 1

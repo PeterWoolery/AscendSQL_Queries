@@ -1,0 +1,14 @@
+SELECT Sales.ID
+	, Sales.BarCode
+	, Payments.DateCreated
+	, Payments.Amount
+	, Payments.CardNo
+	, Payments.AuthCode 
+	, Payments.CardType
+	, Payments.PaymentType
+FROM Payments
+	LEFT JOIN Sales
+		ON Payments.SalesID = Sales.ID
+WHERE Payments.Hide = 0
+AND Payments.PaymentType IN ('Credit Card', 'Debit Card')
+AND Payments.DateCreated BETWEEN <<StartDate>> AND <<EndDate>>
