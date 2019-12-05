@@ -1,11 +1,20 @@
-CREATE VIEW Inventory_Age AS 
+CREATE VIEW Inventory_Age AS
 
 SELECT Locations.Name, Products.Description, Products.Quantity,
 
 CASE
-WHEN CAST(DATEDIFF(s,(SELECT TOP 1 OrderItems.DateReceived FROM OrderItems, VendorProducts WHERE OrderItems.VendorProductID = VendorProducts.ID AND VendorProducts.ProductID = Products.ID ORDER BY OrderItems.DateReceived DESC),GETDATE()) AS Decimal) > CAST(DATEDIFF(s,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE()) AS Decimal) THEN DATEDIFF(day,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE())
+  WHEN
+    CAST(DATEDIFF(s,(SELECT TOP 1 OrderItems.DateReceived FROM OrderItems, VendorProducts WHERE OrderItems.VendorProductID = VendorProducts.ID AND VendorProducts.ProductID = Products.ID ORDER BY OrderItems.DateReceived DESC),GETDATE()) AS Decimal)
+    >
+    CAST(DATEDIFF(s,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE()) AS Decimal)
+  THEN
+    DATEDIFF(day,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE())
 
-WHEN CAST(DATEDIFF(s,(SELECT TOP 1 OrderItems.DateReceived FROM OrderItems, VendorProducts WHERE OrderItems.VendorProductID = VendorProducts.ID AND VendorProducts.ProductID = Products.ID ORDER BY OrderItems.DateReceived DESC),GETDATE()) AS Decimal) IS NULL THEN DATEDIFF(day,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE())
+  WHEN
+    CAST(DATEDIFF(s,(SELECT TOP 1 OrderItems.DateReceived FROM OrderItems, VendorProducts WHERE OrderItems.VendorProductID = VendorProducts.ID AND VendorProducts.ProductID = Products.ID ORDER BY OrderItems.DateReceived DESC),GETDATE()) AS Decimal)
+    IS NULL
+  THEN
+    DATEDIFF(day,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE())
 
 
 ELSE DATEDIFF(day,(SELECT TOP 1 OrderItems.DateReceived FROM OrderItems, VendorProducts WHERE OrderItems.VendorProductID = VendorProducts.ID AND VendorProducts.ProductID = Products.ID ORDER BY OrderItems.DateReceived DESC),GETDATE())
