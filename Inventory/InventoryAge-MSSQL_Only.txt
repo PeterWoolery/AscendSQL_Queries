@@ -1,0 +1,24 @@
+CREATE VIEW Inventory_Age AS 
+
+SELECT Locations.Name, Products.Description, Products.Quantity,
+
+CASE
+WHEN CAST(DATEDIFF(s,(SELECT TOP 1 OrderItems.DateReceived FROM OrderItems, VendorProducts WHERE OrderItems.VendorProductID = VendorProducts.ID AND VendorProducts.ProductID = Products.ID ORDER BY OrderItems.DateReceived DESC),GETDATE()) AS Decimal) > CAST(DATEDIFF(s,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE()) AS Decimal) THEN DATEDIFF(day,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE())
+
+WHEN CAST(DATEDIFF(s,(SELECT TOP 1 OrderItems.DateReceived FROM OrderItems, VendorProducts WHERE OrderItems.VendorProductID = VendorProducts.ID AND VendorProducts.ProductID = Products.ID ORDER BY OrderItems.DateReceived DESC),GETDATE()) AS Decimal) IS NULL THEN DATEDIFF(day,(SELECT TOP 1 InventoryAdjustment.DateCreated FROM InventoryAdjustment WHERE InventoryAdjustment.ProductID = Products.ID AND InventoryAdjustment.NewQty-InventoryAdjustment.OldQty > 0 ORDER BY InventoryAdjustment.DateCreated DESC),GETDATE())
+
+
+ELSE DATEDIFF(day,(SELECT TOP 1 OrderItems.DateReceived FROM OrderItems, VendorProducts WHERE OrderItems.VendorProductID = VendorProducts.ID AND VendorProducts.ProductID = Products.ID ORDER BY OrderItems.DateReceived DESC),GETDATE())
+
+END AS [LAST Acquired],
+
+Products.AvgCost * Products.Quantity AS [Cost on Hand]
+
+
+
+
+From Products, Locations WHERE Products.Quantity > 0 AND Locations.ActiveStore = 1
+GO
+SELECT DISTINCT(Name),AVG("LAST Acquired") AS [AVG Days], CAST((SELECT COUNT("LAST Acquired") FROM Inventory_Age WHERE "LAST Acquired" > 365) AS Decimal)/CAST(COUNT("LAST Acquired") AS Decimal) AS [Over 1 Year], CAST((SELECT COUNT("LAST Acquired") FROM Inventory_Age WHERE "LAST Acquired" > 180) AS Decimal)/CAST(COUNT("LAST Acquired") AS Decimal) AS [Over 6 months] FROM Inventory_Age GROUP BY Name
+GO
+DROP VIEW Inventory_Age;
