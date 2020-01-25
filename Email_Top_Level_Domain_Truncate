@@ -1,0 +1,1 @@
+UPDATE Customers SET Email = LEFT(Email, LEN(Email)-1), DateModified = GETDATE() WHERE ID IN (SELECT ID FROM Customers WHERE Email LIKE '%.com_' OR Email LIKE '%.net_')
