@@ -6,7 +6,8 @@ SELECT Locations.Name,
         Orders.InvoiceNumber ,
         Vendors.Name,
         OrderItems.Quantity ,
-        OrderItems.Cost 
+        OrderItems.Cost ,
+        OrderItems.CaseQty 
 FROM Locations,OrderItems,Products,VendorProducts,Vendors,Orders
 WHERE OrderItems.VendorProductID = VendorProducts.ID 
         AND VendorProducts.ProductID =Products.ID 
@@ -14,5 +15,5 @@ WHERE OrderItems.VendorProductID = VendorProducts.ID
         AND OrderItems.OrderID = Orders.ID 
         AND ORderItems.Hide <> 1
         AND Orders.Hide <> 1
-        AND OrderItems.DateReceived BETWEEN <<StartDate>> AND <<EndDate>>
+        AND OrderItems.DateReceived BETWEEN '20200101' AND '20210101'
         AND Locations.ActiveStore = 1
