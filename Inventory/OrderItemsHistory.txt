@@ -1,0 +1,18 @@
+SELECT Locations.Name,
+        Products.[Store UPC] , 
+        Products.Description ,
+        CONVERT(VarChar,OrderItems.DateReceived,101) AS [DateReceived],
+        Orders.PONumber ,
+        Orders.InvoiceNumber ,
+        Vendors.Name,
+        OrderItems.Quantity ,
+        OrderItems.Cost 
+FROM Locations,OrderItems,Products,VendorProducts,Vendors,Orders
+WHERE OrderItems.VendorProductID = VendorProducts.ID 
+        AND VendorProducts.ProductID =Products.ID 
+        AND Vendors.ID = VendorProducts.VendorID 
+        AND OrderItems.OrderID = Orders.ID 
+        AND ORderItems.Hide <> 1
+        AND Orders.Hide <> 1
+        AND OrderItems.DateReceived BETWEEN <<StartDate>> AND <<EndDate>>
+        AND Locations.ActiveStore = 1
