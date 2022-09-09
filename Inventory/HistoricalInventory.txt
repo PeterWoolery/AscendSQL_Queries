@@ -1,0 +1,65 @@
+With InvAdj AS
+	(SELECT ProductID, SUM(NewQty-OldQty) AS [Change]
+	FROM InventoryAdjustment
+	WHERE InventoryAdjustment.DateCreated > '20220901'
+		AND InventoryAdjustment.Hide <> 1
+	GROUP BY ProductID ),
+Sold AS 
+	(SELECT ProductID, SUM(SalesItems.Quantity) AS Quantity
+	FROM SalesItems, Sales
+	WHERE SalesItems.Hide <> 1
+		AND Sales.Hide <> 1
+		AND Sales.ID = SalesItems.SalesID
+		AND Sales.Quote <> 1
+		AND SalesItems.DateCreated > '20220901'
+	GROUP BY ProductID),
+Received AS 
+	(SELECT VendorProducts.ProductID, SUM(OrderItems.Quantity) AS [Quantity]
+	FROM VendorProducts, OrderItems 
+	WHERE OrderItems.VendorProductID  = VendorProducts.ID
+		AND OrderItems.Hide <> 1
+		AND OrderItems.DateReceived > '20220901'
+	GROUP BY VendorProducts.ProductID),
+LastReceived AS 
+	(SELECT VendorProducts.ProductID,OrderItems.DateReceived , ROW_NUMBER() OVER(Partition BY VendorProducts.ProductID ORDER BY OrderItems.DateReceived  DESC) AS Row
+		FROM OrderItems, VendorProducts 
+		WHERE OrderItems.Hide <> 1
+			AND OrderItems.VendorProductID = VendorProducts.ID
+			AND OrderItems.DateReceived < '20220901'),
+LastTransferedIn AS 
+	(SELECT InventoryAdjustment.ProductID, InventoryAdjustment.DateCreated, ROW_NUMBER() OVER(Partition BY InventoryAdjustment.ProductID ORDER BY InventoryAdjustment.DateCreated  DESC) AS Row
+	FROM InventoryAdjustment
+	WHERE InventoryAdjustment.Hide <> 1
+		AND InventoryAdjustment.Comments = 'Checked-in transfer item'
+		AND InventoryAdjustment.DateCreated < '20220901'),
+LastAdjUp AS 
+	(SELECT InventoryAdjustment.ProductID, InventoryAdjustment.DateCreated, ROW_NUMBER() OVER(Partition BY InventoryAdjustment.ProductID ORDER BY InventoryAdjustment.DateCreated  DESC) AS Row
+	FROM InventoryAdjustment
+	WHERE InventoryAdjustment.Hide <> 1
+		AND NewQty -OldQty >0
+		AND InventoryAdjustment.DateCreated < '20220901')
+SELECT Products.ID,
+	Products.Quantity - ISNULL(InvAdj.Change,0) + ISNULL(Sold.Quantity,0) - ISNULL(Received.Quantity,0) AS [Hstorical QTY],
+	DATEDIFF(Day,
+		CASE WHEN LastReceived.DateReceived > ISNULL(LastTransferedIn.DateCreated,0) THEN LastReceived.DateReceived
+			WHEN LastTransferedIn.DateCreated > ISNULL(LastReceived.DateReceived,0) THEN LastTransferedIn.DateCreated
+			ELSE LastAdjUp.DateCreated
+			END
+		,'20220901') AS [Inventory Aging],
+	Products.Quantity , 
+	InvAdj.Change , 
+	Sold.Quantity, 
+	Received.Quantity, 
+	LastReceived.DateReceived, 
+	LastTransferedIn.DateCreated As [LastTransfer],
+	LastAdjUp.DateCreated AS [LastAdjustedUp]
+FROM Products
+LEFT OUTER JOIN InvAdj ON Products.ID = InvAdj.ProductID
+LEFT OUTER JOIN Sold ON Products.ID = Sold.ProductID
+LEFT OUTER JOIN Received ON Products.ID = Received.ProductID
+LEFT OUTER JOIN LastReceived ON Products.ID = LastReceived.ProductID
+LEFT OUTER JOIN LastTransferedIN ON Products.ID = LastTransferedIn.ProductID
+LEFT OUTER JOIN LastAdjUp ON Products.ID = LastAdjUp.ProductID
+WHERE (LastReceived.Row = 1 OR LastReceived.Row IS NULL)
+	AND (LastTransferedIn.Row = 1 OR LastTransferedIn.Row IS NULL)
+	AND (LastAdjUp.Row = 1 OR LastAdjUp.Row IS NULL)
